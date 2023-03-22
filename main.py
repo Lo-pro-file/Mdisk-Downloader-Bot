@@ -61,19 +61,18 @@ def help(client: pyrogram.client.Client, message: pyrogram.types.messages_and_me
 
 # check for user access
 def checkuser(message):
-    if auth != "" or ban != "":
-        valid = 1
-        if auth != "":
-            authusers = auth.split(",")
-            if str(message.from_user.id) not in authusers:
-                valid = 0
-        if ban != "":
-            bannedusers = ban.split(",")
-            if str(message.from_user.id) in bannedusers:
-                valid = 0
-        return valid        
-    else:
+    if auth == "" and ban == "":
         return 1
+    valid = 1
+    if auth != "":
+        authusers = auth.split(",")
+        if str(message.from_user.id) not in authusers:
+            valid = 0
+    if ban != "":
+        bannedusers = ban.split(",")
+        if str(message.from_user.id) in bannedusers:
+            valid = 0
+    return valid
 
 
 # download status
@@ -81,12 +80,13 @@ def status(folder,message,fsize):
     fsize = fsize / pow(2,20)
     length = len(folder)
     # wait for the folder to create
-    while True:
-        if os.path.exists(folder + "/vid.mp4.part-Frag0") or os.path.exists(folder + "/vid.mp4.part"):
-            break
-    
+    while not (
+        os.path.exists(f"{folder}/vid.mp4.part-Frag0")
+        or os.path.exists(f"{folder}/vid.mp4.part")
+    ):
+        pass
     time.sleep(3)
-    while os.path.exists(folder + "/" ):
+    while os.path.exists(f"{folder}/"):
         if iswin == "0":
             result = subprocess.run(["du", "-hs", f"{folder}/"], capture_output=True, text=True)
             size = result.stdout[:-(length+2)]
@@ -105,11 +105,9 @@ def status(folder,message,fsize):
 
 # upload status
 def upstatus(statusfile,message):
-    while True:
-        if os.path.exists(statusfile):
-            break
-
-    time.sleep(3)      
+    while not os.path.exists(statusfile):
+        pass
+    time.sleep(3)
     while os.path.exists(statusfile):
         with open(statusfile,"r") as upread:
             txt = upread.read()
@@ -140,7 +138,7 @@ def down(message,link):
 
     # checking link and download and merge
     file,check,filename = mdisk.mdow(link,message)
-    if file == None:
+    if file is None:
         app.edit_message_text(message.chat.id, msg.id,"__**Invalid Link**__")
         return
 
@@ -162,11 +160,11 @@ def down(message,link):
     i = 1
 
     # checking thumbline
-    if not os.path.exists(f'{message.from_user.id}-thumb.jpg'):
-        thumbfile = None
-    else:
-        thumbfile = f'{message.from_user.id}-thumb.jpg'
-
+    thumbfile = (
+        f'{message.from_user.id}-thumb.jpg'
+        if os.path.exists(f'{message.from_user.id}-thumb.jpg')
+        else None
+    )
     # upload thread
     upsta = threading.Thread(target=lambda:upstatus(f'{message.id}upstatus.txt',msg),daemon=True)
     upsta.start()
@@ -179,7 +177,7 @@ def down(message,link):
         if not os.path.exists(ele):
             app.send_message(message.chat.id,"**Error in Merging File**",reply_to_message_id=message.id)
             return
-            
+
         # check if it's multi part
         if len(flist) == 1:
             partt = ""
@@ -190,20 +188,19 @@ def down(message,link):
         # actuall upload
         if info == "V":
             thumb,duration,width,height = mediainfo.allinfo(ele,thumbfile)
-            if not isPremmium : app.send_video(message.chat.id, video=ele, caption=f"{partt}**{filename}**", thumb=thumb, duration=duration, height=height, width=width, reply_to_message_id=message.id, progress=progress, progress_args=[message])
-            else:
+            if isPremmium:
                 with acc: tmsg = acc.send_video(temp_channel, video=ele, caption=f"{partt}**{filename}**", thumb=thumb, duration=duration, height=height, width=width, progress=progress, progress_args=[message])
                 app.copy_message(message.chat.id, temp_channel, tmsg.id, reply_to_message_id=message.id)
+            else: app.send_video(message.chat.id, video=ele, caption=f"{partt}**{filename}**", thumb=thumb, duration=duration, height=height, width=width, reply_to_message_id=message.id, progress=progress, progress_args=[message])
             if "-thumb.jpg" not in thumb: os.remove(thumb)
+        elif not isPremmium: app.send_document(message.chat.id, document=ele, caption=f"{partt}**{filename}**", thumb=thumbfile, force_document=True, reply_to_message_id=message.id, progress=progress, progress_args=[message])
         else:
-            if not isPremmium : app.send_document(message.chat.id, document=ele, caption=f"{partt}**{filename}**", thumb=thumbfile, force_document=True, reply_to_message_id=message.id, progress=progress, progress_args=[message])
-            else:
-                with acc: tmsg = acc.send_document(temp_channel, document=ele, thumb=thumbfile, caption=f"{partt}**{filename}**", force_document=True, progress=progress, progress_args=[message])
-                app.copy_message(message.chat.id, temp_channel, tmsg.id, reply_to_message_id=message.id)
-       
+            with acc: tmsg = acc.send_document(temp_channel, document=ele, thumb=thumbfile, caption=f"{partt}**{filename}**", force_document=True, progress=progress, progress_args=[message])
+            app.copy_message(message.chat.id, temp_channel, tmsg.id, reply_to_message_id=message.id)
+
         # deleting uploaded file
         os.remove(ele)
-        
+
     # checking if restriction is removed    
     if check == 0:
         app.send_message(message.chat.id,"__Can't remove the **restriction**, you have to use **MX player** to play this **video**\n\nThis happens because either the **file** length is **too small** or **video** doesn't have separate **audio layer**__",reply_to_message_id=message.id)
@@ -339,10 +336,9 @@ def mdisktext(client: pyrogram.client.Client, message: pyrogram.types.messages_a
         links = message.text.split("\n")
         if len(links) == 1:
             d = threading.Thread(target=lambda:down(message,links[0]),daemon=True)
-            d.start()
         else:
             d = threading.Thread(target=lambda:multilinks(message,links),daemon=True)
-            d.start()   
+        d.start()
     else:
         app.send_message(message.chat.id, '**Send only __MDisk Link__**',reply_to_message_id=message.id)
 

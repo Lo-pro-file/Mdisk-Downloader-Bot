@@ -9,9 +9,7 @@ temp_channel = os.environ.get("TEMP_CHAT", "")
 try: temp_channel = int(temp_channel)
 except: pass
 ss = os.environ.get("STRING", "")
-if ss != "" and temp_channel != "": isPremmium = True
-else: isPremmium = False
-
+isPremmium = ss != "" and temp_channel != ""
 if isPremmium:
     TG_SPLIT_SIZE = 2097151000 * 2
     checksize = 2097152000 * 2
@@ -60,8 +58,8 @@ def split_file(path, size, file_, dirpath, split_size, start_time=0, i=1):
     if file_.upper().endswith(VIDEO_SUFFIXES):
         base_name, extension = ospath.splitext(file_)
         split_size = split_size - 2500000
-        while i <= parts :
-            parted_name = "{}.part{}{}".format(str(base_name), str(i).zfill(3), str(extension))
+        while i <= parts:
+            parted_name = f"{str(base_name)}.part{str(i).zfill(3)}{str(extension)}"
             out_path = ospath.join(dirpath, parted_name)
             srun(["./ffmpeg/ffmpeg", "-hide_banner", "-loglevel", "error", "-i",
                             path, "-ss", str(start_time), "-fs", str(split_size),
@@ -80,10 +78,10 @@ def split_file(path, size, file_, dirpath, split_size, start_time=0, i=1):
             i = i + 1
             flist.append(out_path)
     else:
-        out_path = ospath.join(dirpath, file_ + ".")
+        out_path = ospath.join(dirpath, f"{file_}.")
         srun(["split", "--numeric-suffixes=1", "--suffix-length=3", f"--bytes={split_size}", path, out_path])
         flist.append(out_path)
-    print(flist)   
+    print(flist)
     return flist 
     
 
